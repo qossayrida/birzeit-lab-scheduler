@@ -9,65 +9,83 @@ export function parseRitajHTML(html: string): Lab[] {
   const doc = parser.parseFromString(html, 'text/html');
   const labs: Lab[] = [];
 
-  // Try multiple selectors to find course rows
-  const rows = doc.querySelectorAll('tr, .course-row, .course-item');
+  // Look for course links with data-course-id attributes
+  const courseLinks = doc.querySelectorAll('a[data-course-id]');
 
-  rows.forEach((row) => {
+  courseLinks.forEach((link) => {
     try {
-      const lab = parseRow(row);
+      const lab = parseCourseLink(link);
       if (lab) {
         labs.push(lab);
       }
     } catch (error) {
-      console.warn('Failed to parse row:', error);
+      console.warn('Failed to parse course:', error);
     }
   });
 
   return labs;
 }
 
-function parseRow(row: Element): Lab | null {
-  // Extract text content
-  const text = row.textContent || '';
-  const cells = Array.from(row.querySelectorAll('td, .cell, span'));
+function parseCourseLink(link: Element): Lab | null {
+  // Get course ID from data attribute
+  const courseId = link.getAttribute('data-course-id');
+  if (!courseId) return null;
 
-  // Look for course code matching ENCS_1[0-5]
-  const codeMatch = text.match(/ENCS[_\s]?1[0-5]/i);
-  if (!codeMatch) {
+  // Extract course code from data-course-id (format: cid_ENCSXXXX)
+  const codeMatch = courseId.match(/cid_ENCS(\d{4})/);
+  if (!codeMatch) return null;
+
+  const fullCode = `ENCS${codeMatch[1]}`;
+  
+  // Filter: only courses where second digit is 1 (ENCS[0-9]1[0-9]{2})
+  if (!/^ENCS[0-9]1[0-9]{2}$/.test(fullCode)) {
     return null;
   }
 
-  const code = codeMatch[0].replace(/\s/g, '_').toUpperCase();
+  // Get course name from data attribute
+  const courseName = link.getAttribute('data-course-name') || '';
 
-  // Extract section (look for L1, L2, etc.)
-  const sectionMatch = text.match(/L\d+/i);
-  const section = sectionMatch ? sectionMatch[0].toUpperCase() : 'L1';
+  // Find the code and title in the link's child elements
+  const codeSpan = link.querySelector('span');
+  const titleDiv = link.querySelector('.title');
+  
+  const code = codeSpan?.textContent?.trim() || fullCode;
+  const title = titleDiv?.textContent?.trim() || courseName || `${code} Lab`;
 
-  // Extract title (usually after the code)
-  let title = '';
-  const titleMatch = text.match(/ENCS[_\s]?1[0-5]\s+([A-Za-z\s]+)/i);
-  if (titleMatch) {
-    title = titleMatch[1].trim();
-  } else {
-    // Try to find title in cells
-    for (const cell of cells) {
-      const cellText = cell.textContent?.trim() || '';
-      if (cellText.length > 10 && !cellText.match(/ENCS|^\d+$/)) {
-        title = cellText;
-        break;
+  // Extract section info from the collapse content (if available)
+  // For now, we'll set default section as L1
+  const section = 'L1';
+
+  // Get the collapse target to find more details
+  const collapseTarget = link.getAttribute('href');
+  let instructorName: string | undefined;
+  const { days, times } = { days: [] as Day[], times: [8, 11, 14] as SlotTime[] };
+
+  // If we can find the collapse content, parse it for more details
+  if (collapseTarget) {
+    const collapseId = collapseTarget.replace('#', '');
+    const collapseContent = link.ownerDocument?.getElementById(collapseId);
+    if (collapseContent) {
+      const collapseText = collapseContent.textContent || '';
+      
+      // Extract instructor
+      const instructorMatch = collapseText.match(/(?:Dr\.|Prof\.|Mr\.|Ms\.|د\.|أ\.)\s*([^\n\r]+)/i);
+      if (instructorMatch) {
+        instructorName = instructorMatch[0].trim();
       }
+
+      // Extract days and times from collapse content
+      const parsedDaysAndTimes = parseDaysAndTimes(collapseText);
+      days.push(...parsedDaysAndTimes.days);
+      times.length = 0;
+      times.push(...parsedDaysAndTimes.times);
     }
   }
 
-  // Extract instructor name
-  let instructorName: string | undefined;
-  const instructorMatch = text.match(/(?:Dr\.|Prof\.|Mr\.|Ms\.)\s+([A-Za-z\s]+)/i);
-  if (instructorMatch) {
-    instructorName = instructorMatch[0].trim();
+  // If no days found, default to weekdays
+  if (days.length === 0) {
+    days.push('Sun', 'Mon', 'Tue', 'Wed', 'Thu');
   }
-
-  // Extract days and times
-  const { days, times } = parseDaysAndTimes(text);
 
   // Generate stable ID
   const id = `${code}_${section}_${hashString(code + section)}`;
@@ -75,7 +93,7 @@ function parseRow(row: Element): Lab | null {
   return {
     id,
     code,
-    title: title || `${code} Lab`,
+    title,
     section,
     instructorName,
     feasibleDays: days,

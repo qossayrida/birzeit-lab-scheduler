@@ -163,7 +163,7 @@ where:
 src/
 ├── components/          # React components
 │   ├── AppShell.tsx    # Main layout with header/toolbar
-│   ├── FetchPanel.tsx  # Data fetching UI
+│   ├── FetchPanel.tsx  # Lab HTML upload UI
 │   ├── TAFormList.tsx  # TA management
 │   ├── LabTable.tsx    # Lab editing table
 │   ├── ScheduleGrid.tsx # Calendar view
@@ -183,7 +183,7 @@ src/
 └── App.tsx             # Main app component
 
 api/
-└── proxy.js            # CORS proxy (serverless)
+└── proxy.js            # Legacy serverless proxy (optional)
 ```
 
 ### Data Models
@@ -240,9 +240,9 @@ export default defineConfig({
 });
 ```
 
-### Proxy Endpoint
+### Legacy Proxy Endpoint (Optional)
 
-The proxy bypasses CORS when fetching from Ritaj. Deploy options:
+The proxy bypasses CORS when fetching from Ritaj. It is not required when using HTML uploads, but deployment steps are kept here if you decide to restore network fetching:
 
 **Cloudflare Workers**:
 ```bash
@@ -253,18 +253,6 @@ wrangler deploy api/proxy.js
 **Netlify**: Auto-deploys from `netlify.toml`
 
 **Vercel**: Auto-deploys from `vercel.json`
-
-### Static Proxy Cache (GitHub Pages)
-
-GitHub Pages does not execute serverless functions, so `/api/proxy` will return `404`.  
-To keep the “Fetch & Parse Labs” button working in that environment:
-
-1. Save the Ritaj course page as HTML (e.g. `term=1251&bu=10759`).  
-2. Copy the file to `public/proxy-cache/` (for example `public/proxy-cache/ritaj-1251-10759.html`).  
-3. Register the snapshot in `STATIC_PROXY_CACHE` inside `src/store/useStore.ts`, matching on the query parameters.
-
-When the live proxy and direct fetch both fail, the app automatically falls back to the static snapshot.  
-Update or add new cached files whenever the Ritaj data changes.
 
 ## 🧪 Testing
 
@@ -309,12 +297,12 @@ Tests cover:
 
 ## 🐛 Troubleshooting
 
-### CORS Errors
+### Refreshing Data
 
-If fetching fails in production:
-1. Confirm the requested URL has a snapshot registered in `STATIC_PROXY_CACHE`.
-2. Use the HTML upload option as a quick workaround.
-3. Deploy the proxy endpoint (Cloudflare Worker/Vercel/Netlify) for live data refreshes.
+If the labs list looks outdated:
+1. Capture a fresh HTML export from the Ritaj course list.
+2. Upload the new file through the Upload Labs Data panel.
+3. Clear cached state from the app if older data persists.
 
 ### Data Not Persisting
 

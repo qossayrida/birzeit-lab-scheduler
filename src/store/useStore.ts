@@ -13,6 +13,50 @@ import { scheduleAssignments } from '../lib/scheduler';
 import { generateSeed } from '../lib/prng';
 import { getCurrentTimestamp } from '../lib/dates';
 
+const STATIC_PROXY_CACHE: Record<string, string> = {
+  'term=1251&bu=10759&new_page=1': 'proxy-cache/ritaj-1251-10759.html'
+};
+
+function normalizeRitajQuery(targetUrl: string): string | null {
+  try {
+    const parsed = new URL(targetUrl);
+
+    if (parsed.hostname !== 'ritaj.birzeit.edu') {
+      return null;
+    }
+
+    const term = parsed.searchParams.get('term');
+    const bu = parsed.searchParams.get('bu');
+    const newPage = parsed.searchParams.get('new_page') || '1';
+
+    if (!term || !bu) {
+      return null;
+    }
+
+    return `term=${term}&bu=${bu}&new_page=${newPage}`;
+  } catch {
+    return null;
+  }
+}
+
+function resolveStaticProxyUrl(targetUrl: string): string | null {
+  const key = normalizeRitajQuery(targetUrl);
+  if (!key) {
+    return null;
+  }
+
+  const assetPath = STATIC_PROXY_CACHE[key];
+  if (!assetPath) {
+    return null;
+  }
+
+  const base = import.meta.env.BASE_URL || '/';
+  const trimmedBase = base.endsWith('/') ? base.slice(0, -1) : base;
+  const prefix = trimmedBase === '/' ? '' : trimmedBase;
+
+  return `${prefix}/${assetPath}`.replace(/\/{2,}/g, '/');
+}
+
 interface StoreState extends AppState {
   // Loading states
   isLoading: boolean;
@@ -88,28 +132,58 @@ export const useStore = create<StoreState>((set, get) => ({
   fetchAndParseLabs: async (url?: string) => {
     const state = get();
     const targetUrl = url || state.sourceUrl;
+    const staticProxyUrl = resolveStaticProxyUrl(targetUrl);
     
     set({ isFetching: true, error: null });
     
     try {
-      // Try to use proxy endpoint
-      let html: string;
+      let html: string | null = null;
+      let lastError: unknown = null;
       
+      // Attempt proxy fetch first
       try {
-        // First try the proxy
         const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
         const response = await fetch(proxyUrl);
         
         if (!response.ok) {
-          throw new Error('Proxy request failed');
+          throw new Error(`Proxy request failed (${response.status})`);
         }
         
         html = await response.text();
       } catch (proxyError) {
-        // Fallback: try direct fetch (will fail due to CORS, but worth trying)
-        console.warn('Proxy failed, trying direct fetch:', proxyError);
-        const response = await fetch(targetUrl);
-        html = await response.text();
+        lastError = proxyError;
+        console.warn('Proxy fetch failed:', proxyError);
+      }
+
+      // Direct fetch fallback (will usually fail with CORS when hosted on GitHub Pages)
+      if (!html) {
+        try {
+          const response = await fetch(targetUrl);
+          html = await response.text();
+        } catch (directError) {
+          lastError = directError;
+          console.warn('Direct fetch failed (expected on browsers due to CORS):', directError);
+        }
+      }
+
+      // Static proxy cache fallback for GitHub Pages deployment
+      if (!html && staticProxyUrl) {
+        try {
+          const response = await fetch(staticProxyUrl, { cache: 'no-cache' });
+          if (!response.ok) {
+            throw new Error(`Static proxy returned status ${response.status}`);
+          }
+          html = await response.text();
+          console.info(`Loaded labs data from static proxy cache at ${staticProxyUrl}`);
+        } catch (staticError) {
+          lastError = staticError;
+          console.error('Static proxy cache fetch failed:', staticError);
+        }
+      }
+
+      if (!html) {
+        const message = lastError instanceof Error ? lastError.message : 'Failed to fetch labs data';
+        throw new Error(message);
       }
       
       // Cache the HTML

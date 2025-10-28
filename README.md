@@ -260,6 +260,18 @@ wrangler deploy api/proxy.js
 
 **Vercel**: Auto-deploys from `vercel.json`
 
+### Static Proxy Cache (GitHub Pages)
+
+GitHub Pages does not execute serverless functions, so `/api/proxy` will return `404`.  
+To keep the “Fetch & Parse Labs” button working in that environment:
+
+1. Save the Ritaj course page as HTML (e.g. `term=1251&bu=10759`).  
+2. Copy the file to `public/proxy-cache/` (for example `public/proxy-cache/ritaj-1251-10759.html`).  
+3. Register the snapshot in `STATIC_PROXY_CACHE` inside `src/store/useStore.ts`, matching on the query parameters.
+
+When the live proxy and direct fetch both fail, the app automatically falls back to the static snapshot.  
+Update or add new cached files whenever the Ritaj data changes.
+
 ## 🧪 Testing
 
 ```bash
@@ -305,10 +317,10 @@ Tests cover:
 
 ### CORS Errors
 
-If fetching fails:
-1. Use the HTML upload option
-2. Deploy the proxy endpoint
-3. Update proxy URL in `useStore.ts`
+If fetching fails in production:
+1. Confirm the requested URL has a snapshot registered in `STATIC_PROXY_CACHE`.
+2. Use the HTML upload option as a quick workaround.
+3. Deploy the proxy endpoint (Cloudflare Worker/Vercel/Netlify) for live data refreshes.
 
 ### Data Not Persisting
 

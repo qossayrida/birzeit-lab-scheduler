@@ -133,6 +133,11 @@ export const useStore = create<StoreState>((set, get) => ({
     const state = get();
     const targetUrl = url || state.sourceUrl;
     const staticProxyUrl = resolveStaticProxyUrl(targetUrl);
+    const shouldPreferStatic =
+      typeof window !== 'undefined' &&
+      !!staticProxyUrl &&
+      (window.location.hostname.endsWith('.github.io') ||
+        window.location.hostname === 'github.io');
     
     set({ isFetching: true, error: null });
     
@@ -140,19 +145,35 @@ export const useStore = create<StoreState>((set, get) => ({
       let html: string | null = null;
       let lastError: unknown = null;
       
-      // Attempt proxy fetch first
-      try {
-        const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
-        const response = await fetch(proxyUrl);
-        
-        if (!response.ok) {
-          throw new Error(`Proxy request failed (${response.status})`);
+      if (shouldPreferStatic && staticProxyUrl) {
+        try {
+          const response = await fetch(staticProxyUrl, { cache: 'no-cache' });
+          if (!response.ok) {
+            throw new Error(`Static proxy returned status ${response.status}`);
+          }
+          html = await response.text();
+          console.info(`Loaded labs data from static proxy cache at ${staticProxyUrl}`);
+        } catch (staticError) {
+          lastError = staticError;
+          console.warn('Static proxy preferred fetch failed, falling back to proxy:', staticError);
         }
-        
-        html = await response.text();
-      } catch (proxyError) {
-        lastError = proxyError;
-        console.warn('Proxy fetch failed:', proxyError);
+      }
+      
+      // Attempt proxy fetch first
+      if (!html) {
+        try {
+          const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
+          const response = await fetch(proxyUrl);
+          
+          if (!response.ok) {
+            throw new Error(`Proxy request failed (${response.status})`);
+          }
+          
+          html = await response.text();
+        } catch (proxyError) {
+          lastError = proxyError;
+          console.warn('Proxy fetch failed:', proxyError);
+        }
       }
 
       // Direct fetch fallback (will usually fail with CORS when hosted on GitHub Pages)
@@ -166,8 +187,8 @@ export const useStore = create<StoreState>((set, get) => ({
         }
       }
 
-      // Static proxy cache fallback for GitHub Pages deployment
-      if (!html && staticProxyUrl) {
+      // Static proxy cache fallback if we didn't already try it (non GitHub hosts)
+      if (!html && staticProxyUrl && !shouldPreferStatic) {
         try {
           const response = await fetch(staticProxyUrl, { cache: 'no-cache' });
           if (!response.ok) {

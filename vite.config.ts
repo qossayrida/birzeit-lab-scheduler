@@ -4,7 +4,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
 export default defineConfig({
-  base: '/', // Changed to root path for custom domain
+  base: '/birzeit-lab-scheduler/',
   plugins: [
     react(),
     VitePWA({
@@ -47,8 +47,7 @@ export default defineConfig({
   ],
   preview: {
     port: parseInt(process.env.PORT || '4173'),
-    host: '0.0.0.0',
-    allowedHosts: ['binarybridges.dev', 'www.binarybridges.dev', 'localhost']
+    host: '0.0.0.0'
   },
   build: {
     outDir: 'dist',

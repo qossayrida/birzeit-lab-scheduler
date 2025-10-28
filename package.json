@@ -3,7 +3,7 @@
   "private": true,
   "version": "1.0.0",
   "type": "module",
-  "homepage": "https://binarybridges.dev",
+  "homepage": "https://qossayrida.github.io/birzeit-lab-scheduler/",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",

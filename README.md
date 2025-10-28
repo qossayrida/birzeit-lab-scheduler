@@ -4,7 +4,7 @@ A comprehensive TA lab scheduling system for Birzeit University that generates o
 
 ## 🎯 Features
 
-- **Automated Lab Extraction**: Fetches and parses course data from Ritaj (ENCS_1[0-5] courses)
+- **Automated Lab Extraction**: Parses uploaded Ritaj course data (ENCS_1[0-5] courses)
 - **Smart Scheduling Algorithm**: Uses seeded PRNG for reproducible, deterministic scheduling
 - **TA Management**: Add/edit TAs with preferences, availability, and capacity constraints
 - **Interactive UI**: Modern, responsive interface with drag-and-drop capabilities
@@ -55,17 +55,11 @@ npm run deploy
 
 ## 📖 Usage Guide
 
-### 1. Fetch Lab Data
+### 1. Upload Lab Data
 
-**Option A: Fetch from Ritaj**
-1. Enter the Ritaj course list URL (pre-filled)
-2. Click "Fetch & Parse Labs"
-3. The system will extract all ENCS_1[0-5] labs
-
-**Option B: Upload HTML**
-1. Save the Ritaj page as HTML
-2. Click "Upload HTML File"
-3. Select your saved file
+1. Open the Ritaj course list in your browser.
+2. Save the page locally as an HTML file.
+3. Click "Upload HTML File" and select the saved file to extract ENCS_1[0-5] labs.
 
 ### 2. Add Teaching Assistants
 

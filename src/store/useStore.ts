@@ -4,58 +4,12 @@ import {
   loadState, 
   saveState, 
   getDefaultState, 
-  clearAllData,
-  cacheHTML,
-  getCachedHTML 
+  clearAllData
 } from '../lib/storage';
 import { parseRitajHTML } from '../lib/parser';
 import { scheduleAssignments } from '../lib/scheduler';
 import { generateSeed } from '../lib/prng';
 import { getCurrentTimestamp } from '../lib/dates';
-
-const STATIC_PROXY_CACHE: Record<string, string> = {
-  'term=1251&bu=10759&new_page=1': 'proxy-cache/ritaj-1251-10759.html'
-};
-
-function normalizeRitajQuery(targetUrl: string): string | null {
-  try {
-    const parsed = new URL(targetUrl);
-
-    if (parsed.hostname !== 'ritaj.birzeit.edu') {
-      return null;
-    }
-
-    const term = parsed.searchParams.get('term');
-    const bu = parsed.searchParams.get('bu');
-    const newPage = parsed.searchParams.get('new_page') || '1';
-
-    if (!term || !bu) {
-      return null;
-    }
-
-    return `term=${term}&bu=${bu}&new_page=${newPage}`;
-  } catch {
-    return null;
-  }
-}
-
-function resolveStaticProxyUrl(targetUrl: string): string | null {
-  const key = normalizeRitajQuery(targetUrl);
-  if (!key) {
-    return null;
-  }
-
-  const assetPath = STATIC_PROXY_CACHE[key];
-  if (!assetPath) {
-    return null;
-  }
-
-  const base = import.meta.env.BASE_URL || '/';
-  const trimmedBase = base.endsWith('/') ? base.slice(0, -1) : base;
-  const prefix = trimmedBase === '/' ? '' : trimmedBase;
-
-  return `${prefix}/${assetPath}`.replace(/\/{2,}/g, '/');
-}
 
 interface StoreState extends AppState {
   // Loading states
@@ -66,8 +20,6 @@ interface StoreState extends AppState {
 
   // Actions
   initialize: () => Promise<void>;
-  setSourceUrl: (url: string) => void;
-  fetchAndParseLabs: (url?: string) => Promise<void>;
   uploadHTML: (file: File) => Promise<void>;
   
   // TA management
@@ -121,123 +73,6 @@ export const useStore = create<StoreState>((set, get) => ({
         error: error instanceof Error ? error.message : 'Failed to load data',
         isLoading: false 
       });
-    }
-  },
-
-  setSourceUrl: (url: string) => {
-    set({ sourceUrl: url });
-    get().persist();
-  },
-
-  fetchAndParseLabs: async (url?: string) => {
-    const state = get();
-    const targetUrl = url || state.sourceUrl;
-    const staticProxyUrl = resolveStaticProxyUrl(targetUrl);
-    const shouldPreferStatic =
-      typeof window !== 'undefined' &&
-      !!staticProxyUrl &&
-      (window.location.hostname.endsWith('.github.io') ||
-        window.location.hostname === 'github.io');
-    
-    set({ isFetching: true, error: null });
-    
-    try {
-      let html: string | null = null;
-      let lastError: unknown = null;
-      
-      if (shouldPreferStatic && staticProxyUrl) {
-        try {
-          const response = await fetch(staticProxyUrl, { cache: 'no-cache' });
-          if (!response.ok) {
-            throw new Error(`Static proxy returned status ${response.status}`);
-          }
-          html = await response.text();
-          console.info(`Loaded labs data from static proxy cache at ${staticProxyUrl}`);
-        } catch (staticError) {
-          lastError = staticError;
-          console.warn('Static proxy preferred fetch failed, falling back to proxy:', staticError);
-        }
-      }
-      
-      // Attempt proxy fetch first
-      if (!html) {
-        try {
-          const proxyUrl = `/api/proxy?url=${encodeURIComponent(targetUrl)}`;
-          const response = await fetch(proxyUrl);
-          
-          if (!response.ok) {
-            throw new Error(`Proxy request failed (${response.status})`);
-          }
-          
-          html = await response.text();
-        } catch (proxyError) {
-          lastError = proxyError;
-          console.warn('Proxy fetch failed:', proxyError);
-        }
-      }
-
-      // Direct fetch fallback (will usually fail with CORS when hosted on GitHub Pages)
-      if (!html) {
-        try {
-          const response = await fetch(targetUrl);
-          html = await response.text();
-        } catch (directError) {
-          lastError = directError;
-          console.warn('Direct fetch failed (expected on browsers due to CORS):', directError);
-        }
-      }
-
-      // Static proxy cache fallback if we didn't already try it (non GitHub hosts)
-      if (!html && staticProxyUrl && !shouldPreferStatic) {
-        try {
-          const response = await fetch(staticProxyUrl, { cache: 'no-cache' });
-          if (!response.ok) {
-            throw new Error(`Static proxy returned status ${response.status}`);
-          }
-          html = await response.text();
-          console.info(`Loaded labs data from static proxy cache at ${staticProxyUrl}`);
-        } catch (staticError) {
-          lastError = staticError;
-          console.error('Static proxy cache fetch failed:', staticError);
-        }
-      }
-
-      if (!html) {
-        const message = lastError instanceof Error ? lastError.message : 'Failed to fetch labs data';
-        throw new Error(message);
-      }
-      
-      // Cache the HTML
-      const cacheKey = await cacheHTML(targetUrl, html);
-      
-      // Parse labs
-      const labs = parseRitajHTML(html);
-      
-      set({
-        labs,
-        lastFetch: getCurrentTimestamp(),
-        rawHtmlCacheKey: cacheKey,
-        isFetching: false,
-        error: null
-      });
-      
-      await get().persist();
-    } catch (error) {
-      // Try to use cached data
-      const cachedHTML = await getCachedHTML(targetUrl);
-      if (cachedHTML) {
-        const labs = parseRitajHTML(cachedHTML);
-        set({
-          labs,
-          isFetching: false,
-          error: 'Using cached data (network unavailable)'
-        });
-      } else {
-        set({
-          error: error instanceof Error ? error.message : 'Failed to fetch labs. Please upload HTML manually.',
-          isFetching: false
-        });
-      }
     }
   },
 
@@ -378,7 +213,6 @@ export const useStore = create<StoreState>((set, get) => ({
     const exportData = {
       schemaVersion: state.schemaVersion,
       lastFetch: state.lastFetch,
-      sourceUrl: state.sourceUrl,
       labs: state.labs,
       tas: state.tas,
       globalSeed: state.globalSeed,
@@ -396,7 +230,6 @@ export const useStore = create<StoreState>((set, get) => ({
       set({
         schemaVersion: data.schemaVersion || 1,
         lastFetch: data.lastFetch,
-        sourceUrl: data.sourceUrl,
         labs: data.labs || [],
         tas: data.tas || [],
         globalSeed: data.globalSeed || generateSeed(),
@@ -433,8 +266,6 @@ export const useStore = create<StoreState>((set, get) => ({
       await saveState({
         schemaVersion: state.schemaVersion,
         lastFetch: state.lastFetch,
-        sourceUrl: state.sourceUrl,
-        rawHtmlCacheKey: state.rawHtmlCacheKey,
         labs: state.labs,
         tas: state.tas,
         globalSeed: state.globalSeed,

@@ -92,8 +92,6 @@ export function getDefaultState(): AppState {
   return {
     schemaVersion: SCHEMA_VERSION,
     lastFetch: null,
-    sourceUrl: 'https://ritaj.birzeit.edu/hemis/bu-courses-list?term=1251&bu=10759&new_page=1',
-    rawHtmlCacheKey: null,
     labs: [],
     tas: [],
     globalSeed: Math.floor(Math.random() * 0x7fffffff),

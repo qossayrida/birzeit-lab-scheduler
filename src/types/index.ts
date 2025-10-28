@@ -39,8 +39,6 @@ export interface UnassignedLab {
 export interface AppState {
   schemaVersion: number;
   lastFetch: string | null;
-  sourceUrl: string;
-  rawHtmlCacheKey: string | null;
   labs: Lab[];
   tas: TA[];
   globalSeed: number;

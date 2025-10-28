@@ -1,5 +1,6 @@
 import { useStore } from '../store/useStore';
 import { Lock, Unlock } from 'lucide-react';
+import type { Assignment } from '../types';
 
 export function TAView() {
   const { assignments, labs, tas, lockAssignment } = useStore();
@@ -15,10 +16,10 @@ export function TAView() {
   }
 
   // Sort assignments by day and time
-  const sortAssignments = (assignments: typeof assignments) => {
-    const dayOrder = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
-    return [...assignments].sort((a, b) => {
-      const dayDiff = dayOrder[a.day] - dayOrder[b.day];
+  const sortAssignments = (assignmentList: Assignment[]) => {
+    const dayOrder: Record<string, number> = { Sun: 0, Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6 };
+    return [...assignmentList].sort((a, b) => {
+      const dayDiff = (dayOrder[a.day] || 0) - (dayOrder[b.day] || 0);
       if (dayDiff !== 0) return dayDiff;
       return a.time - b.time;
     });

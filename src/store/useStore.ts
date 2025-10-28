@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { AppState, Lab, TA, Assignment } from '../types';
+import type { AppState, Lab, TA, Assignment } from '../types';
 import { 
   loadState, 
   saveState, 

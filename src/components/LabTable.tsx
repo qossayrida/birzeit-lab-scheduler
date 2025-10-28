@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Edit2, Lock, Unlock } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { Lab, Day, SlotTime } from '../types';
+import type { Lab, Day, SlotTime } from '../types';
 import { getAllDays, getAllTimes } from '../lib/dates';
 
 export function LabTable() {

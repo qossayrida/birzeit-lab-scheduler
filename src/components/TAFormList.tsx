@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Plus, Edit2, Trash2, Save, X } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { TA, Day, SlotTime } from '../types';
+import type { TA, Day, SlotTime } from '../types';
 import { getAllDays, getAllTimes } from '../lib/dates';
 
 export function TAFormList() {

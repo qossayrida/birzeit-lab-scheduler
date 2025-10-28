@@ -1,4 +1,4 @@
-import { Lab, Day, SlotTime } from '../types';
+import type { Lab, Day, SlotTime } from '../types';
 import { hashString } from './prng';
 
 /**

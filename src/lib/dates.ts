@@ -1,4 +1,4 @@
-import { Day, SlotTime } from '../types';
+import type { Day, SlotTime } from '../types';
 
 /**
  * Format time slot for display

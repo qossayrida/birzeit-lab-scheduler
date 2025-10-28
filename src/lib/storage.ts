@@ -1,5 +1,5 @@
 import localforage from 'localforage';
-import { AppState } from '../types';
+import type { AppState } from '../types';
 
 const SCHEMA_VERSION = 1;
 const STORE_KEY = 'appState@v1';
@@ -78,7 +78,7 @@ export async function clearAllData(): Promise<void> {
 /**
  * Migrate state from old schema to new
  */
-function migrateState(oldState: any): AppState {
+function migrateState(_oldState: any): AppState {
   // For now, just return a default state
   // In the future, implement actual migration logic
   console.warn('Migration not implemented, returning default state');

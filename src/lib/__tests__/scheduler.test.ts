@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { scheduleAssignments, validateSchedule } from '../scheduler';
-import { Lab, TA } from '../../types';
+import type { Lab, TA } from '../../types';
 
 describe('scheduleAssignments', () => {
   const mockLabs: Lab[] = [

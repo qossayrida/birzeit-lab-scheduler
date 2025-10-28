@@ -1,4 +1,4 @@
-import { Lab, TA, Assignment, Day, SlotTime, ScheduleResult, UnassignedLab } from '../types';
+import type { Lab, TA, Assignment, Day, SlotTime, ScheduleResult, UnassignedLab } from '../types';
 import { SeededRandom } from './prng';
 
 interface Slot {
@@ -6,11 +6,6 @@ interface Slot {
   time: SlotTime;
 }
 
-interface TAScore {
-  ta: TA;
-  score: number;
-  assignedCount: number;
-}
 
 /**
  * Main scheduling algorithm
@@ -249,7 +244,6 @@ export function validateSchedule(
   tas: TA[]
 ): string[] {
   const errors: string[] = [];
-  const labMap = new Map(labs.map(lab => [lab.id, lab]));
   const taMap = new Map(tas.map(ta => [ta.id, ta]));
 
   // Check for double bookings

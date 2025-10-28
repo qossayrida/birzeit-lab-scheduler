@@ -148,7 +148,7 @@ function sortLabsByDifficulty(labs: Lab[], rng: SeededRandom): Lab[] {
  * Find best TA for a lab considering all feasible slots
  */
 function findBestTA(
-  lab: Lab,
+  _lab: Lab,
   feasibleSlots: Slot[],
   tas: TA[],
   taAssignments: Map<string, Assignment[]>,
@@ -240,7 +240,7 @@ function calculateLoadPenalty(assignedCount: number, maxLabs: number): number {
  */
 export function validateSchedule(
   assignments: Assignment[],
-  labs: Lab[],
+  _labs: Lab[],
   tas: TA[]
 ): string[] {
   const errors: string[] = [];
